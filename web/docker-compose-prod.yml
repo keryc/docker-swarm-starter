@@ -1,0 +1,151 @@
+version: "3.3"
+
+services:
+  nginx:
+    image: nginx:1.13.10
+    volumes:
+      - ngdata-prod:/ng-app/dist
+      - ./nginx:/etc/nginx/conf.d
+      - ./server/static:/home/app/server/static
+      - ./server/media:/home/app/server/media
+    ports:
+      - "4200:80" #Test Local
+      - "8000:81" #Test Local
+      - "3000:82" #Test Local
+    #environment:
+    #  - LETSENCRYPT_EMAIL=kdiaz@hobox.org
+    #  - LETSENCRYPT_HOST=example.com
+    #  - VIRTUAL_HOST=example.com
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+        window: 120s
+
+  database:
+    image: postgres:9.3.22
+    environment:
+      - POSTGRES_USER=user_example
+      - POSTGRES_PASSWORD=Zaq12exam2174
+      - POSTGRES_DB=db_example
+    volumes:
+      - pgdata-prod:/var/lib/postgresql/data/
+
+      - ./database:/etc/cron.daily
+      - ./database/backups:/var/backups
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+        window: 20s
+
+  rabbitmq:
+    image: "rabbitmq:3-management"
+    environment:
+      RABBITMQ_DEFAULT_USER: "rabbitmq"
+      RABBITMQ_DEFAULT_PASS: "aq123d"
+      RABBITMQ_DEFAULT_VHOST: "/"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+        window: 20s
+
+  client:
+    image: reg.hobox.org/kdiaz/angular-starter:1.0.0
+    volumes:
+        - ngdata-prod:/ng-app/dist
+
+  server:
+    image: reg.hobox.org/kdiaz/django-starter:1.0.0
+    env_file: 'server-prod.env'
+    volumes:
+      - ./server/static:/home/app/server/static
+      - ./server/media:/home/app/server/media
+    command: bash -c "sleep 7;./entrypoint.sh && gunicorn server.wsgi -b 0.0.0.0:8000"
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+        window: 120s
+    depends_on:
+      - database
+
+  celery_worker:
+    image: reg.hobox.org/kdiaz/django-starter:1.0.0
+    env_file: 'server-prod.env'
+    command: 'celery -A server worker -l info'
+    volumes:
+      - ./server/static:/home/app/server/static
+      - ./server/media:/home/app/server/media
+    depends_on:
+      - server
+      - rabbitmq
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+        window: 120s
+    depends_on:
+      - database
+      - rabbitmq
+      - server
+
+  celery_beat:
+    image: reg.hobox.org/kdiaz/django-starter:1.0.0
+    env_file: 'server-prod.env'
+    command: 'celery -A server beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler'
+    volumes:
+      - ./server/static:/home/app/server/static
+      - ./server/media:/home/app/server/media
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+        window: 120s
+    depends_on:
+      - database
+      - rabbitmq
+      - server
+      - celery_worker
+
+  nodejs:
+    image: reg.hobox.org/kdiaz/nodejs-starter:1.0.0
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+        window: 120s
+
+volumes:
+  pgdata-prod:
+    driver: local
+  ngdata-prod:
+    driver: local
+
+#networks:
+#  default:
+#    external:
+#      name: letsencrypts_net

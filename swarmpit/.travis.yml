@@ -1,0 +1,32 @@
+language: clojure
+services:
+  - docker
+cache:
+  directories:
+    - ~/.m2
+    - ~/docker
+jdk:
+  - oraclejdk8
+env:
+  - DOCKER=test
+  - DOCKER=stable
+  - DOCKER=17.11
+  - DOCKER=17.10
+  - DOCKER=17.09
+  - DOCKER=17.07
+  - DOCKER=17.06
+  - DOCKER=17.03
+  - DOCKER=1.13
+before_cache:
+  - >
+    mkdir -p $HOME/docker && docker images -a --filter='dangling=false' --format '{{.Repository}}:{{.Tag}} {{.ID}}'
+    | xargs -n 2 -t sh -c 'test -e $HOME/docker/$1.tar.gz || docker save $0 | gzip -2 > $HOME/docker/$1.tar.gz'
+before_install:
+  - if [[ -d $HOME/docker ]]; then ls $HOME/docker/*.tar.gz | xargs -I {file} sh -c "zcat {file} | docker load"; fi
+install:
+  - bash dev/script/init-db.sh
+  - bash dev/script/init-ec.sh
+  - bash dev/script/start-dind.sh
+script:
+  - lein test :all
+  - bash dev/script/deploy-image.sh

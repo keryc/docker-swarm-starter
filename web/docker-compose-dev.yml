@@ -1,0 +1,74 @@
+version: "3.3"
+
+services:
+  database:
+    image: postgres:9.3.22
+    environment:
+      - POSTGRES_USER=user_example
+      - POSTGRES_PASSWORD=Zaq12exam2174
+      - POSTGRES_DB=db_example
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data/
+
+      - ./database:/etc/cron.daily
+      - ./database/backups:/var/backups
+
+  rabbitmq:
+    image: "rabbitmq:3-management"
+    environment:
+      RABBITMQ_DEFAULT_USER: "rabbitmq"
+      RABBITMQ_DEFAULT_PASS: "aq123d"
+      RABBITMQ_DEFAULT_VHOST: "/"
+    ports:
+      - "5672:5672"
+
+  client:
+    image: angular-starter:1.0.0
+    volumes:
+      - ./client/src:/ng-app/src
+    ports:
+      - "4200:4200"
+    command: "./node_modules/.bin/ng serve --host 0.0.0.0"
+
+  server:
+    image: django-starter:1.0.0
+    env_file: 'server-dev.env'
+    volumes:
+      - ./server:/home/app/server
+    ports:
+      - "8000:8000"
+    command: bash -c "sleep 7;/home/app/server/entrypoint.sh && python3 manage.py runserver 0.0.0.0:8000"
+    depends_on:
+      - database
+
+  celery_worker:
+    image: django-starter:1.0.0
+    env_file: 'server-dev.env'
+    command: 'celery -A server worker -l info'
+    volumes:
+      - ./server:/home/app/server
+    depends_on:
+      - database
+      - rabbitmq
+      - server
+
+  celery_beat:
+    image: django-starter:1.0.0
+    env_file: 'server-dev.env'
+    command: 'celery -A server beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler'
+    volumes:
+      - ./server:/home/app/server
+    depends_on:
+      - database
+      - rabbitmq
+      - server
+      - celery_worker
+
+  nodejs:
+    image: nodejs-starter:1.0.0
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata-dev:
+    driver: local

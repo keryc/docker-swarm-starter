@@ -1,0 +1,8 @@
+Django==2.0.2
+gunicorn==19.7.1
+psycopg2-binary==2.7.4
+pytz==2018.3
+django-cors-headers==2.2.0
+celery==4.1.0
+django-celery-results==1.0.1
+django-celery-beat==1.1.1

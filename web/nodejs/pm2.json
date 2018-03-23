@@ -1,0 +1,6 @@
+{
+    "name" : "nodejs-starter",
+    "script" : "./src/app.js",
+    "instances"  : 2,
+    "exec_mode"  : "cluster"
+}

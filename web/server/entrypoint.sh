@@ -22,8 +22,12 @@ cd /home/app/server
 echo "[run] Migrate DB"
 python manage.py migrate --noinput
 
-echo "[run] Collect static files"
-python manage.py collectstatic --noinput
+if $DEBUG; then
+   	echo "[norun] Collect static files"
+else
+	echo "[run] Collect static files"
+	python manage.py collectstatic --noinput
+fi
 
 echo "[run] Fixtures"
 python manage.py loaddata ./*/fixtures/*.json

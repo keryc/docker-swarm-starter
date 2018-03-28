@@ -84,7 +84,7 @@ services:
   celery_worker:
     image: reg.hobox.org/kdiaz/django-starter:1.0.0
     env_file: 'server-prod.env'
-    command: 'celery -A server worker -l info'
+    command: bash -c "sleep 7;/home/app/server/wait-for-it.sh rabbitmq:5672:5672 && celery -A server worker -l info"
     volumes:
       - ./server/static:/home/app/server/static
       - ./server/media:/home/app/server/media
@@ -108,7 +108,7 @@ services:
   celery_beat:
     image: reg.hobox.org/kdiaz/django-starter:1.0.0
     env_file: 'server-prod.env'
-    command: 'celery -A server beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler'
+    command: bash -c "sleep 7;/home/app/server/wait-for-it.sh rabbitmq:5672:5672 && celery -A server beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     volumes:
       - ./server/static:/home/app/server/static
       - ./server/media:/home/app/server/media

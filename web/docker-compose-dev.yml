@@ -13,7 +13,7 @@ services:
       - ./database/backups:/var/backups
 
   rabbitmq:
-    image: "rabbitmq:3-management"
+    image: "rabbitmq:3.7.4-rc.4-management"
     environment:
       RABBITMQ_DEFAULT_USER: "rabbitmq"
       RABBITMQ_DEFAULT_PASS: "aq123d"
@@ -43,7 +43,7 @@ services:
   celery_worker:
     image: django-starter:1.0.0
     env_file: 'server-dev.env'
-    command: 'celery -A server worker -l info'
+    command: bash -c "sleep 7;/home/app/server/wait-for-it.sh rabbitmq:5672:5672 && celery -A server worker -l info"
     volumes:
       - ./server:/home/app/server
     depends_on:
@@ -54,7 +54,7 @@ services:
   celery_beat:
     image: django-starter:1.0.0
     env_file: 'server-dev.env'
-    command: 'celery -A server beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler'
+    command: bash -c "sleep 7;/home/app/server/wait-for-it.sh rabbitmq:5672:5672 && celery -A server beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     volumes:
       - ./server:/home/app/server
     depends_on:

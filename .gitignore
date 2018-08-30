@@ -3,6 +3,7 @@
 ### Angular ###
 ## Angular ##
 # compiled output
+package-lock.json
 /dist
 /tmp
 /app/**/*.js

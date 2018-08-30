@@ -2,11 +2,12 @@
   (:require [material.component.form :as form]
             [material.component.list-table-form :as list]
             [swarmpit.component.state :as state]
+            [sablono.core :refer-macros [html]]
             [rum.core :as rum]))
 
 (enable-console-print!)
 
-(def cursor [:form :variables])
+(def form-value-cursor (conj state/form-value-cursor :variables))
 
 (def headers [{:name  "Name"
                :width "35%"}
@@ -19,7 +20,7 @@
      :key      (str "form-name-text-" index)
      :value    value
      :onChange (fn [_ v]
-                 (state/update-item index :name v cursor))}))
+                 (state/update-item index :name v form-value-cursor))}))
 
 (defn- form-value [value index]
   (list/textfield
@@ -27,7 +28,7 @@
      :key      (str "form-value-text-" index)
      :value    value
      :onChange (fn [_ v]
-                 (state/update-item index :value v cursor))}))
+                 (state/update-item index :value v form-value-cursor))}))
 
 (defn- render-variables
   [item index]
@@ -38,19 +39,21 @@
 
 (defn- form-table
   [variables]
-  (list/table headers
-              variables
-              nil
-              render-variables
-              (fn [index] (state/remove-item index cursor))))
+  (form/form
+    {}
+    (list/table-raw headers
+                    variables
+                    nil
+                    render-variables
+                    (fn [index] (state/remove-item index form-value-cursor)))))
 
 (defn- add-item
   []
   (state/add-item {:name  ""
-                   :value ""} cursor))
+                   :value ""} form-value-cursor))
 
 (rum/defc form < rum/reactive []
-  (let [variables (state/react cursor)]
+  (let [variables (state/react form-value-cursor)]
     (if (empty? variables)
       (form/value "No environment variables defined for the service.")
       (form-table variables))))

@@ -1,18 +1,14 @@
 (ns swarmpit.component.menu
-  (:require [material.component :as comp]
-            [material.icon :as icon]
-            [sablono.core :refer-macros [html]]
-            [swarmpit.component.handler :as handler]
+  (:require [material.icon :as icon]
+            [material.component :as comp]
             [swarmpit.component.state :as state]
             [swarmpit.storage :as storage]
+            [swarmpit.ajax :as ajax]
             [swarmpit.routes :as routes]
+            [sablono.core :refer-macros [html]]
             [rum.core :as rum]))
 
 (enable-console-print!)
-
-(def cursor [:layout])
-
-(def docker-api-cursor [:docker :api])
 
 (def drawer-style
   {:boxShadow "none"})
@@ -80,6 +76,10 @@
 
 (def menu
   [{:name "APPLICATIONS"}
+   {:name    "Stacks"
+    :icon    icon/stacks
+    :handler :stack-list
+    :domain  :stack}
    {:name    "Services"
     :icon    icon/services
     :handler :service-list
@@ -148,10 +148,10 @@
 
 (defn- version-handler
   []
-  (handler/get
+  (ajax/get
     (routes/path-for-backend :version)
-    {:on-success (fn [response]
-                   (state/update-value [:version] (parse-version response) cursor)
+    {:on-success (fn [{:keys [response]}]
+                   (state/update-value [:version] (parse-version response) state/layout-cursor)
                    (state/set-value response))}))
 
 (rum/defc drawer-category < rum/static [name opened?]
@@ -193,8 +193,8 @@
 
 (rum/defc drawer < rum/reactive
                    retrieve-version [page-domain]
-  (let [{:keys [opened version]} (state/react cursor)
-        docker-api (state/react docker-api-cursor)
+  (let [{:keys [opened version]} (state/react state/layout-cursor)
+        docker-api (state/react state/docker-api-cursor)
         drawer-container-style (if opened
                                  drawer-container-opened-style
                                  drawer-container-closed-style)]
@@ -210,10 +210,11 @@
            :style                    drawer-style
            :iconElementLeft          drawer-icon
            :onLeftIconButtonTouchTap (fn []
-                                       (state/update-value [:opened] (not opened) cursor))})
+                                       (state/update-value [:opened] (not opened) state/layout-cursor))})
         (comp/menu
           {:key   "menu"
-           :style menu-style}
+           :style menu-style
+           :listStyle {:paddingBottom "80px"}}
           (map
             (fn [menu-item]
               (let [icon (:icon menu-item)

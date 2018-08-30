@@ -1,16 +1,17 @@
 (ns swarmpit.component.service.info.mounts
   (:require [material.component.form :as form]
             [material.component.list-table-auto :as list]
-            [rum.core :as rum]))
+            [rum.core :as rum]
+            [swarmpit.routes :as routes]))
 
 (enable-console-print!)
 
 (def headers-bind ["Container path" "Host path" "Read only"])
 
-(def headers-volume ["Container path" "Volume" "Read only"])
+(def headers-volume ["Container path" "Volume" "Read only" "Driver"])
 
 (def render-item-keys
-  [[:containerPath] [:host] [:readOnly]])
+  [[:containerPath] [:host] [:readOnly] [:volumeOptions :driver :name]])
 
 (defn render-item
   [item _]
@@ -20,6 +21,10 @@
                   "Yes"
                   "No")
       (val item))))
+
+(defn onclick-handler
+  [item]
+  (routes/path-for-frontend :volume-info {:name (:host item)}))
 
 (rum/defc form-bind < rum/static [bind]
   (when (not-empty bind)
@@ -39,7 +44,7 @@
                  volume
                  render-item
                  render-item-keys
-                 nil)]))
+                 onclick-handler)]))
 
 (rum/defc form < rum/static [mounts]
   (when (not-empty mounts)

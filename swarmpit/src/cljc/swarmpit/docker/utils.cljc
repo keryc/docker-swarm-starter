@@ -6,7 +6,7 @@
   [stack name]
   "Removes stack name from object name eg. swarmpit_app -> app"
   (if (some? stack)
-    (str/replace name #"^.*_" "")
+    (subs name (+ 1 (count stack)))
     name))
 
 (defn library?
@@ -23,6 +23,12 @@
          (not (.contains repository-name "."))
          (not (.contains repository-name ":"))
          (not (.contains repository-name "localhost")))))
+
+(defn registry?
+  "Check whether repository is registry"
+  [repository-name]
+  (and (false? (library? repository-name))
+       (false? (dockerhub? repository-name))))
 
 (defn distribution-id
   [repository-name]
@@ -46,3 +52,11 @@
   (-> (str/split registry-url #"//")
       (second)
       (str "/" repository-name)))
+
+(defn hypothetical-stack
+  [service-name]
+  "Return hypothetical stack name from canonical service name"
+  (when (some? service-name)
+    (let [seg (str/split service-name #"_")]
+      (when (< 1 (count seg))
+        (first seg)))))

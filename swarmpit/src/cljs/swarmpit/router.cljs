@@ -6,8 +6,6 @@
             [swarmpit.url :refer [dispatch! query-string]]
             [clojure.walk :refer [keywordize-keys]]))
 
-(def cursor [:route])
-
 (defonce !router (atom nil))
 
 (defonce !route (atom nil))
@@ -30,13 +28,13 @@
                    route-params (:route-params new-location)
                    handler (:handler new-location)]
                (state/set-value {:handler handler
-                                 :params  (merge route-params query-params)} cursor))))
+                                 :params  (merge route-params query-params)} state/route-cursor))))
 
 (defn- on-navigate
   [location]
   ;; Render to service list by default as we don't have any index page right now
   (if (= :index (:handler location))
-    (set-route {:handler :service-list})
+    (set-route {:handler :stack-list})
     (set-route location)))
 
 (defn start

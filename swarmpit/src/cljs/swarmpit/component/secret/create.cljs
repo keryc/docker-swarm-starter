@@ -1,26 +1,22 @@
 (ns swarmpit.component.secret.create
-  (:require [material.component :as comp]
+  (:require [material.icon :as icon]
+            [material.component :as comp]
             [material.component.form :as form]
             [material.component.panel :as panel]
-            [material.icon :as icon]
-            [swarmpit.url :refer [dispatch!]]
-            [swarmpit.component.handler :as handler]
             [swarmpit.component.mixin :as mixin]
+            [swarmpit.component.editor :as editor]
             [swarmpit.component.state :as state]
             [swarmpit.component.message :as message]
+            [swarmpit.url :refer [dispatch!]]
+            [swarmpit.ajax :as ajax]
             [swarmpit.routes :as routes]
+            [sablono.core :refer-macros [html]]
+            [swarmpit.url :refer [dispatch!]]
             [rum.core :as rum]))
 
 (enable-console-print!)
 
-(def cursor [:form])
-
-(defonce valid? (atom false))
-
-(def form-data-style
-  {:padding  "10px"
-   :border   "1px solid rgb(224, 224, 224)"
-   :minWidth "400px"})
+(def editor-id "secret-editor")
 
 (defn- form-name [value]
   (form/comp
@@ -31,79 +27,77 @@
        :required true
        :value    value
        :onChange (fn [_ v]
-                   (state/update-value [:secretName] v cursor))})))
+                   (state/update-value [:secretName] v state/form-value-cursor))})))
 
 (defn- form-data [value]
-  (form/textarea
-    "DATA"
-    (comp/vtext-field
-      {:name          "data"
-       :key           "data"
-       :required      true
-       :multiLine     true
-       :rows          10
-       :fullWidth     true
-       :textareaStyle form-data-style
-       :value         value
-       :onChange      (fn [_ v]
-                        (state/update-value [:data] v cursor))})))
-
-(defn- form-data-encoder [value]
-  (form/comp
-    "ENCODE DATA"
-    (form/checkbox
-      {:name    "encoded"
-       :key     "encoded"
-       :checked value
-       :onCheck (fn [_ v]
-                  (state/update-value [:encode] v cursor))})))
+  (comp/vtext-field
+    {:id            editor-id
+     :name          "secret-editor"
+     :key           "secret-editor"
+     :multiLine     true
+     :rows          10
+     :rowsMax       10
+     :value         value
+     :underlineShow false
+     :fullWidth     true}))
 
 (defn- create-secret-handler
   []
-  (handler/post
+  (ajax/post
     (routes/path-for-backend :secret-create)
-    {:params     (state/get-value cursor)
-     :on-success (fn [response]
-                   (dispatch!
-                     (routes/path-for-frontend :secret-info (select-keys response [:id])))
+    {:params     (state/get-value state/form-value-cursor)
+     :state      [:processing?]
+     :on-success (fn [{:keys [response origin?]}]
+                   (when origin?
+                     (dispatch!
+                       (routes/path-for-frontend :secret-info (select-keys response [:id]))))
                    (message/info
                      (str "Secret " (:id response) " has been created.")))
-     :on-error   (fn [response]
+     :on-error   (fn [{:keys [response]}]
                    (message/error
-                     (str "Secret creation failed. Reason: " (:error response))))}))
+                     (str "Secret creation failed. " (:error response))))}))
 
-(defn- init-state
+(defn- init-form-state
+  []
+  (state/set-value {:valid?      false
+                    :processing? false} state/form-state-cursor))
+
+(defn- init-form-value
   []
   (state/set-value {:secretName nil
-                    :data       ""
-                    :encode     false} cursor))
+                    :data       ""} state/form-value-cursor))
 
 (def mixin-init-form
   (mixin/init-form
     (fn [_]
-      (init-state))))
+      (init-form-state)
+      (init-form-value))))
+
+(def mixin-init-editor
+  {:did-mount
+   (fn [state]
+     (let [editor (editor/default editor-id)]
+       (.on editor "change" (fn [cm] (state/update-value [:data] (-> cm .getValue) state/form-value-cursor))))
+     state)})
 
 (rum/defc form < rum/reactive
-                 mixin-init-form [_]
-  (let [{:keys [secretName
-                data
-                encode]} (state/react cursor)]
+                 mixin-init-form
+                 mixin-init-editor [_]
+  (let [{:keys [secretName data encode]} (state/react state/form-value-cursor)
+        {:keys [valid? processing?]} (state/react state/form-state-cursor)]
     [:div
      [:div.form-panel
       [:div.form-panel-left
        (panel/info icon/secrets "New secret")]
       [:div.form-panel-right
-       (comp/mui
-         (comp/raised-button
-           {:label      "Create"
-            :disabled   (not (rum/react valid?))
-            :primary    true
-            :onTouchTap create-secret-handler}))]]
+       (comp/progress-button
+         {:label      "Create"
+          :disabled   (not valid?)
+          :primary    true
+          :onTouchTap create-secret-handler} processing?)]]
      [:div.form-edit
-       (form/icon-value icon/info "Data must be base64 encoded. If plain text check please encode data.")
-       (form/form
-         {:onValid   #(reset! valid? true)
-          :onInvalid #(reset! valid? false)}
-         (form-name secretName)
-         (form-data-encoder encode)
-         (form-data data))]]))
+      (form/form
+        {:onValid   #(state/update-value [:valid?] true state/form-state-cursor)
+         :onInvalid #(state/update-value [:valid?] false state/form-state-cursor)}
+        (form-name secretName)
+        (form-data data))]]))

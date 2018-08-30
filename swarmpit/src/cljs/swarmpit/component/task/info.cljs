@@ -3,35 +3,38 @@
             [material.component.form :as form]
             [material.component.panel :as panel]
             [swarmpit.component.mixin :as mixin]
-            [swarmpit.component.handler :as handler]
             [swarmpit.component.state :as state]
             [swarmpit.component.progress :as progress]
+            [swarmpit.ajax :as ajax]
             [swarmpit.routes :as routes]
             [material.icon :as icon]
             [rum.core :as rum]))
 
 (enable-console-print!)
 
-(def cursor [:form])
-
-(defonce loading? (atom false))
-
 (defn- task-handler
   [task-id]
-  (handler/get
+  (ajax/get
     (routes/path-for-backend :task {:id task-id})
-    {:state      loading?
-     :on-success (fn [response]
-                   (state/set-value response cursor))}))
+    {:state      [:loading?]
+     :on-success (fn [{:keys [response]}]
+                   (state/set-value response state/form-value-cursor))}))
+
+(defn- init-form-state
+  []
+  (state/set-value {:loading? true} state/form-state-cursor))
 
 (def mixin-init-form
   (mixin/init-form
     (fn [{{:keys [id]} :params}]
+      (init-form-state)
       (task-handler id))))
 
-(rum/defc form-info < rum/static [item]
-  (let [error (get-in item [:status :error])
-        image-digest (get-in item [:repository :imageDigest])]
+(rum/defc form-info < rum/static [{:keys [repository status] :as item}]
+  (let [error (:error status)
+        image-digest (:imageDigest repository)
+        service (:serviceName item)
+        node (:nodeName item)]
     [:div
      [:div.form-panel
       [:div.form-panel-left
@@ -42,12 +45,15 @@
       [:div.form-view-group
        (form/section "General settings")
        (form/item "ID" (:id item))
+       (form/item "SERVICE" [:a {:href (routes/path-for-frontend :service-info {:id service})} service])
        (form/item "NAME" (:taskName item))
        (form/item-date "CREATED" (:createdAt item))
        (form/item-date "LAST UPDATE" (:updatedAt item))
        (form/item "IMAGE" (get-in item [:repository :image]))
        (when (some? image-digest)
-         (form/item "IMAGE DIGEST" image-digest))]
+         (form/item "IMAGE DIGEST" image-digest))
+       (when node
+         (form/item "NODE" [:a {:href (routes/path-for-frontend :node-info {:id node})} node]))]
       [:div.form-view-group
        (form/section "Status")
        (form/item "STATE" (:state item))
@@ -59,7 +65,8 @@
 
 (rum/defc form < rum/reactive
                  mixin-init-form [_]
-  (let [task (state/react cursor)]
+  (let [state (state/react state/form-state-cursor)
+        item (state/react state/form-value-cursor)]
     (progress/form
-      (rum/react loading?)
-      (form-info task))))
+      (:loading? state)
+      (form-info item))))

@@ -8,13 +8,23 @@
   [auth]
   (base64/encode (generate-string auth)))
 
+(defn- label-query
+  [label]
+  (when (some? label)
+    {:filters (generate-string {:label [label]})}))
+
 ;; Service
 
 (defn services
-  []
-  (-> (execute {:method :GET
-                :api    "/services"})
-      :body))
+  ([]
+   (-> (execute {:method :GET
+                 :api    "/services"})
+       :body))
+  ([label]
+   (-> (execute {:method  :GET
+                 :api     "/services"
+                 :options {:query-params (label-query label)}})
+       :body)))
 
 (defn service
   [id]
@@ -87,10 +97,15 @@
 ;; Network
 
 (defn networks
-  []
-  (-> (execute {:method :GET
-                :api    "/networks"})
-      :body))
+  ([]
+   (-> (execute {:method :GET
+                 :api    "/networks"})
+       :body))
+  ([label]
+   (-> (execute {:method  :GET
+                 :api     "/networks"
+                 :options {:query-params (label-query label)}})
+       :body)))
 
 (defn network
   [id]
@@ -115,10 +130,15 @@
 ;; Volume
 
 (defn volumes
-  []
-  (-> (execute {:method :GET
-                :api    "/volumes"})
-      :body))
+  ([]
+   (-> (execute {:method :GET
+                 :api    "/volumes"})
+       :body))
+  ([label]
+   (-> (execute {:method  :GET
+                 :api     "/volumes"
+                 :options {:query-params (label-query label)}})
+       :body)))
 
 (defn volume
   [name]
@@ -143,10 +163,15 @@
 ;; Secret
 
 (defn secrets
-  []
-  (-> (execute {:method :GET
-                :api    "/secrets"})
-      :body))
+  ([]
+   (-> (execute {:method :GET
+                 :api    "/secrets"})
+       :body))
+  ([label]
+   (-> (execute {:method  :GET
+                 :api     "/secrets"
+                 :options {:query-params (label-query label)}})
+       :body)))
 
 (defn secret
   [id]
@@ -160,13 +185,24 @@
                 :api    (str "/secrets/" id)})
       :body))
 
+(defn- base64-encoding-error? [ex]
+  (clojure.string/starts-with?
+    (get-in (ex-data ex) [:body :error])
+    "illegal base64 data"))
+
 (defn create-secret
   [secret]
-  (-> (execute {:method  :POST
+  (try
+    (->
+      (execute {:method  :POST
                 :api     "/secrets/create"
                 :options {:body    secret
                           :headers {:Content-Type "application/json"}}})
-      :body))
+      :body)
+    (catch Exception ex
+      (if (base64-encoding-error? ex)
+        (create-secret (assoc secret :Data (base64/encode (:Data secret))))
+        (throw ex)))))
 
 (defn update-secret
   [id version secret]
@@ -180,10 +216,15 @@
 ;; Config
 
 (defn configs
-  []
-  (-> (execute {:method :GET
-                :api    "/configs"})
-      :body))
+  ([]
+   (-> (execute {:method :GET
+                 :api    "/configs"})
+       :body))
+  ([label]
+   (-> (execute {:method  :GET
+                 :api     "/configs"
+                 :options {:query-params (label-query label)}})
+       :body)))
 
 (defn config
   [id]
@@ -199,10 +240,15 @@
 
 (defn create-config
   [config]
-  (-> (execute {:method  :POST
-                :api     "/configs/create"
-                :options {:body config}})
-      :body))
+  (try
+    (-> (execute {:method  :POST
+                  :api     "/configs/create"
+                  :options {:body config}})
+        :body)
+    (catch Exception ex
+      (if (base64-encoding-error? ex)
+        (create-config (assoc config :Data (base64/encode (:Data config))))
+        (throw ex)))))
 
 ;; Node
 
@@ -216,6 +262,15 @@
   [id]
   (-> (execute {:method :GET
                 :api    (str "/nodes/" id)})
+      :body))
+
+(defn update-node
+  [id version node]
+  (-> (execute {:method  :POST
+                :api     (str "/nodes/" id "/update")
+                :options {:body         node
+                          :query-params {:version version}
+                          :headers      {:Content-Type "application/json"}}})
       :body))
 
 (defn node-tasks
@@ -239,4 +294,15 @@
   [name]
   (-> (execute {:method :GET
                 :api    (str "/images/" name "/json")})
+      :body))
+
+;; Auth
+
+(defn auth
+  [distribution]
+  (-> (execute {:method  :POST
+                :api     "/auth"
+                :options {:body {:username      (:username distribution)
+                                 :password      (:password distribution)
+                                 :serveraddress (or (:url distribution) "https://index.docker.io/v2")}}})
       :body))

@@ -80,15 +80,39 @@ linked services are shown on resource (volume/network/secret/node) info page.
 - [[#105](https://github.com/swarmpit/swarmpit/issues/105)] Show list of linked services in volume/network/secret ...
 - [[#186](https://github.com/swarmpit/swarmpit/issues/186)] Material & State cleanup
 
+### 1.4 Release
+
+In 1.4 release we finally introduced application stacks. User can easily drag and drop existing compose file
+into stack editor and create / update stack accordingly. Also stack rollback and redeploy functionality has
+been introduced. In case of external stack user can simply link compose file by stack edit. Apart of that we
+did quite a huge refactoring of application state so it's super easy to debug swarmpit in case of failure. 
+Finally we enabled service auto redeploy for external services & added support for service update/rollback
+deployment order.
+
+- [[#39](https://github.com/swarmpit/swarmpit/issues/39)] Add application stacks.
+- [[#207](https://github.com/swarmpit/swarmpit/issues/207)] Add progress btn for create forms instead page progress loader & cleanup local state
+- [[#211](https://github.com/swarmpit/swarmpit/issues/211)] Enable autoredeploy for existing service
+- [[#212](https://github.com/swarmpit/swarmpit/issues/212)] Add support for service update config order
+
+### 1.5 Release
+
+Stacks integration with the engine state was the main goal here. We are now officially supporting multiple ways
+of editing compose either by current state, last deployed or previous one (rollback-ed). It allows seamless
+transition between service & stack api. Event collector went deprecated. Dedicated agent that handle both
+event & stats collecting is introduced instead. Please remove event-collector service once new stack deployed.
+First stage of resource monitoring is out as well. You can now see live statistics of your running nodes & tasks.
+User is offered with possibility to generate custom token for direct communication with Swarmpit backend API.
+
+- [[#226](https://github.com/swarmpit/swarmpit/issues/226)] Generate stackfile dynamically from swarm state
+- [[#227](https://github.com/swarmpit/swarmpit/issues/227)] Update stack based on service change
+- [[#246](https://github.com/swarmpit/swarmpit/issues/246)] Create stack from service
+- [[#225](https://github.com/swarmpit/swarmpit/issues/225)] Upgrade event-collector to fully fledged agent
+- [[#98](https://github.com/swarmpit/swarmpit/issues/98)] Add swarm cluster resource monitoring
+- [[#215](https://github.com/swarmpit/swarmpit/issues/215)] Generating token without expiration date
+
 ## What we will bring into the game
 
 You can find here our goals and related features for future releases.
-
-### 1.4 Release
-
-The main goal is to introduce application stacks.
-
-- [[#39](https://github.com/swarmpit/swarmpit/issues/39)] Add application stacks.
 
 ### 2.0 Release
 

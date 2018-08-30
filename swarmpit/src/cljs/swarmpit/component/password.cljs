@@ -3,9 +3,9 @@
             [material.component :as comp]
             [material.component.form :as form]
             [material.component.panel :as panel]
-            [swarmpit.url :refer [dispatch!]]
-            [swarmpit.component.handler :as handler]
             [swarmpit.component.message :as message]
+            [swarmpit.url :refer [dispatch!]]
+            [swarmpit.ajax :as ajax]
             [swarmpit.routes :as routes]
             [rum.core :as rum]))
 
@@ -53,16 +53,16 @@
 
 (defn- change-password-handler
   [local-state]
-  (handler/post
+  (ajax/post
     (routes/path-for-backend :password)
     {:params     (dissoc @local-state :canSubmit)
      :on-success (fn [_]
-                   (reset! local-state)
+                   (reset! local-state nil)
                    (dispatch!
                      (routes/path-for-frontend :index))
                    (message/info
                      "Password has been changed"))
-     :on-error   (fn [response]
+     :on-error   (fn [{:keys [response]}]
                    (message/error
                      (str "Can't update password: " (:error response))))}))
 

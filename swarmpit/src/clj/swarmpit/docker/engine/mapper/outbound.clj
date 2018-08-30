@@ -1,7 +1,8 @@
 (ns swarmpit.docker.engine.mapper.outbound
   "Map swarmpit domain to docker domain"
   (:require [clojure.string :as str]
-            [swarmpit.base64 :as base64]))
+            [swarmpit.docker.engine.mapper.inbound :refer [autoredeploy-label]]
+            [swarmpit.utils :refer [name-value->map ->nano]]))
 
 (defn- as-bytes
   [megabytes]
@@ -30,6 +31,7 @@
                      (> (:containerPort %) 0)
                      (> (:hostPort %) 0)))
        (map (fn [p] {:Protocol      (:protocol p)
+                     :PublishMode   (:mode p)
                      :PublishedPort (:hostPort p)
                      :TargetPort    (:containerPort p)}))
        (into [])))
@@ -54,23 +56,21 @@
   (->> (:labels service)
        (filter #(not (and (str/blank? (:name %))
                           (str/blank? (:value %)))))
-       (map (fn [l] {(:name l) (:value l)}))
-       (into {})))
+       (name-value->map)))
 
 (defn ->service-log-options
   [service]
   (->> (get-in service [:logdriver :opts])
        (filter #(not (and (str/blank? (:name %))
                           (str/blank? (:value %)))))
-       (map (fn [l] {(:name l) (:value l)}))
-       (into {})))
+       (name-value->map)))
 
 (defn ->service-volume-options
   [service-volume]
   (when (some? service-volume)
     {:Labels       (:labels service-volume)
      :DriverConfig {:Name    (get-in service-volume [:driver :name])
-                    :Options (get-in service-volume [:driver :options])}}))
+                    :Options (name-value->map (get-in service-volume [:driver :options]))}}))
 
 (defn ->service-mounts
   [service]
@@ -144,7 +144,7 @@
         memory (:memory service-resource)]
     {:NanoCPUs    (when (some? cpu)
                     (-> cpu
-                        (* 1000000000)
+                        (->nano)
                         (long)))
      :MemoryBytes (when (some? memory)
                     (as-bytes memory))}))
@@ -153,21 +153,24 @@
   [service]
   (let [update (get-in service [:deployment :update])]
     {:Parallelism   (:parallelism update)
-     :Delay         (* (:delay update) 1000000000)
+     :Delay         (->nano (:delay update))
+     :Order         (:order update)
      :FailureAction (:failureAction update)}))
 
 (defn ->service-rollback-config
   [service]
   (let [rollback (get-in service [:deployment :rollback])]
     {:Parallelism   (:parallelism rollback)
-     :Delay         (* (:delay rollback) 1000000000)
+     :Delay         (->nano (:delay rollback))
+     :Order         (:order rollback)
      :FailureAction (:failureAction rollback)}))
 
 (defn ->service-restart-policy
   [service]
   (let [policy (get-in service [:deployment :restartPolicy])]
     {:Condition   (:condition policy)
-     :Delay       (* (:delay policy) 1000000000)
+     :Delay       (->nano (:delay policy))
+     :Window      (->nano (:window policy))
      :MaxAttempts (:attempts policy)}))
 
 (defn ->service-image
@@ -188,7 +191,7 @@
              {:com.docker.stack.namespace stack
               :com.docker.stack.image     image})
            (when (some? autoredeploy)
-             {:swarmpit.service.deployment.autoredeploy (str autoredeploy)}))))
+             {autoredeploy-label (str autoredeploy)}))))
 
 (defn ->service-container-metadata
   [service]
@@ -208,6 +211,7 @@
                                     :Mounts  (->service-mounts service)
                                     :Secrets (:secrets service)
                                     :Configs (:configs service)
+                                    :Args    (:command service)
                                     :Env     (->service-variables service)}
                     :LogDriver     {:Name    (get-in service [:logdriver :name])
                                     :Options (->service-log-options service)}
@@ -222,38 +226,47 @@
    :RollbackConfig (->service-rollback-config service)
    :EndpointSpec   {:Ports (->service-ports service)}})
 
-(defn ->network-ipam
+(defn ->network-ipam-config
   [network]
   (let [ipam (:ipam network)
         gateway (:gateway ipam)
         subnet (:subnet ipam)]
-    (if (and (not (str/blank? gateway))
-             (not (str/blank? subnet)))
+    (if (not (str/blank? subnet))
       {:Config [{:Subnet  subnet
-                 :Gateway gateway}]})))
+                 :Gateway gateway}]}
+      {:Config []})))
 
 (defn ->network
   [network]
-  {:Name     (:networkName network)
-   :Driver   (:driver network)
-   :Internal (:internal network)
-   :IPAM     (->network-ipam network)})
+  {:Name       (:networkName network)
+   :Driver     (:driver network)
+   :Internal   (:internal network)
+   :Options    (name-value->map (:options network))
+   :Attachable (:attachable network)
+   :Ingress    (:ingress network)
+   :EnableIPv6 (:enableIPv6 network)
+   :IPAM       (merge {:Driver "default"}
+                      (->network-ipam-config network))})
 
 (defn ->volume
   [volume]
-  {:Name    (:volumeName volume)
-   :Driver  (:driver volume)
-   :Options (:options volume)
-   :Labels  (:labels volume)})
+  {:Name       (:volumeName volume)
+   :Driver     (:driver volume)
+   :DriverOpts (name-value->map (:options volume))
+   :Labels     (:labels volume)})
 
 (defn ->secret
   [secret]
   {:Name (:secretName secret)
-   :Data (if (:encode secret)
-           (base64/encode (:data secret))
-           (:data secret))})
+   :Data (:data secret)})
 
 (defn ->config
   [config]
   {:Name (:configName config)
    :Data (:data config)})
+
+(defn ->node
+  [node]
+  {:Availability (:availability node)
+   :Role         (:role node)
+   :Labels       (name-value->map (:labels node))})

@@ -109,6 +109,7 @@
   ([] (factory/radio-button nil)))
 
 (defn raised-button
+  ([props & childs] (factory/raised-button (clj->js props) childs))
   ([props] (factory/raised-button (clj->js props)))
   ([] (factory/raised-button nil)))
 
@@ -197,6 +198,13 @@
 
 ;;; Composite components
 
+(defn vtextfield [props]
+  (vtext-field
+    (merge props
+           {:required      true
+            :underlineShow false
+            :inputStyle    {:color "rgb(117, 117, 117)"}})))
+
 (defn loader [props]
   (refresh-indicator
     (merge props
@@ -210,3 +218,19 @@
     (merge props
            {:listStyle {:overflow-y "scroll"
                         :maxHeight  "230px"}})))
+
+(defn progress-button [props progress?]
+  (let [disabled? (:disabled props)]
+    [:div {:style {:position "relative"}}
+     (mui
+       (raised-button
+         (assoc props :disabled (or disabled? progress?))))
+     (when progress?
+       (mui
+         (circular-progress {:size  24
+                             :style {:zIndex     1000
+                                     :position   "absolute"
+                                     :top        "50%"
+                                     :left       "50%"
+                                     :marginTop  -12
+                                     :marginLeft -12}})))]))

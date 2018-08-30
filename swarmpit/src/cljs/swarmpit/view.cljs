@@ -4,6 +4,12 @@
             [swarmpit.component.page-404 :as page-404]
             [swarmpit.component.page-error :as page-error]
             [swarmpit.component.password :as password]
+            [swarmpit.component.api-access :as api-access]
+            [swarmpit.component.stack.edit :as stack-edit]
+            [swarmpit.component.stack.compose :as stack-compose]
+            [swarmpit.component.stack.create :as stack-create]
+            [swarmpit.component.stack.info :as stack-info]
+            [swarmpit.component.stack.list :as stack-list]
             [swarmpit.component.service.create-config :as service-config]
             [swarmpit.component.service.create-image :as service-image]
             [swarmpit.component.service.edit :as service-edit]
@@ -24,6 +30,7 @@
             [swarmpit.component.config.list :as config-list]
             [swarmpit.component.node.list :as node-list]
             [swarmpit.component.node.info :as node-info]
+            [swarmpit.component.node.edit :as node-edit]
             [swarmpit.component.task.list :as task-list]
             [swarmpit.component.task.info :as task-info]
             [swarmpit.component.user.list :as user-list]
@@ -61,9 +68,39 @@
   [_]
   (page-login/form))
 
+(defmethod dispatch :api-access
+  [_]
+  (api-access/form))
+
 (defmethod dispatch :password
   [_]
   (password/form))
+
+;;; Stack view
+
+(defmethod dispatch :stack-list
+  [route]
+  (stack-list/form route))
+
+(defmethod dispatch :stack-info
+  [route]
+  (stack-info/form route))
+
+(defmethod dispatch :stack-create
+  [route]
+  (stack-create/form route))
+
+(defmethod dispatch :stack-last
+  [route]
+  (stack-edit/form-last route))
+
+(defmethod dispatch :stack-previous
+  [route]
+  (stack-edit/form-previous route))
+
+(defmethod dispatch :stack-compose
+  [route]
+  (stack-compose/form route))
 
 ;;; Service view
 
@@ -114,6 +151,10 @@
 (defmethod dispatch :node-info
   [route]
   (node-info/form route))
+
+(defmethod dispatch :node-edit
+  [route]
+  (node-edit/form route))
 
 ;;; Volume view
 

@@ -1,4 +1,6 @@
-(ns swarmpit.utils)
+(ns swarmpit.utils
+  #?(:clj
+     (:require [flatland.ordered.map :refer [ordered-map]])))
 
 (defn remove-el
   "Remove element in `vector` on given `index`"
@@ -35,3 +37,44 @@
                     (number? x) (str x)
                     (boolean? x) (str x)
                     :else (identity x))) m)))))
+
+(defn empty-or-nil?
+  [val]
+  (if (coll? val)
+    (empty? val)
+    (nil? val)))
+
+(defn clean
+  "remove pairs of key-value that are nil or empty from a (possibly nested) map."
+  [map]
+  (clojure.walk/postwalk
+    #(if (map? %)
+       (let [nm #?(:clj  (if (instance? flatland.ordered.map.OrderedMap %)
+                           (ordered-map)
+                           {})
+                   :cljs {})
+             m (into nm (remove (comp empty-or-nil? val) %))]
+         (when (seq m) m))
+       %)
+    map))
+
+(defn name-value->map
+  [name-value-coll]
+  (->> name-value-coll
+       (map #(hash-map (keyword (:name %)) (:value %)))
+       (into {})))
+
+(defn map->name-value
+  [map-col]
+  (->> map-col
+       (map (fn [l] {:name  (name (key l))
+                     :value (val l)}))
+       (into [])))
+
+(defn ->nano
+  [number]
+  (when number (* number 1000000000)))
+
+(defn nano->
+  [number]
+  (when number (/ number 1000000000)))

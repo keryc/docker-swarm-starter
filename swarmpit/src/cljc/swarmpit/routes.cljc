@@ -11,6 +11,9 @@
        "/login"         {:post :login}
        "/slt"           {:get :slt}
        "/password"      {:post :password}
+       "/me"            {:get :me}
+       "/api-token"     {:post   :api-token-generate
+                         :delete :api-token-remove}
        "/repository/"   {:get {"tags"  :repository-tags
                                "ports" :repository-ports}}
        "/distribution/" {"public"     {:get {"/repositories" :public-repositories}}
@@ -26,12 +29,26 @@
                                                      [:id]                 :registry}
                                             :delete {[:id] :registry-delete}
                                             :post   {[:id] :registry-update}}}}
+       "/stacks"        {:get  :stacks
+                         :post :stack-create}
+       "/stacks/"       {:get    {[:name] {"/file"     :stack-file
+                                           "/compose"  :stack-compose
+                                           "/services" :stack-services
+                                           "/networks" :stack-networks
+                                           "/volumes"  :stack-volumes
+                                           "/configs"  :stack-configs
+                                           "/secrets"  :stack-secrets}}
+                         :delete {[:name] :stack-delete}
+                         :post   {[:name] {""          :stack-update
+                                           "/redeploy" :stack-redeploy
+                                           "/rollback" :stack-rollback}}}
        "/services"      {:get  :services
                          :post :service-create}
        "/services/"     {:get    {[:id] {""          :service
                                          "/logs"     :service-logs
                                          "/networks" :service-networks
-                                         "/tasks"    :service-tasks}}
+                                         "/tasks"    :service-tasks
+                                         "/compose"  :service-compose}}
                          :delete {[:id] :service-delete}
                          :post   {[:id] {""          :service-update
                                          "/redeploy" :service-redeploy
@@ -59,8 +76,9 @@
                          :delete {[:id] :config-delete}}
        "/nodes"         {:get :nodes}
        "/placement"     {:get :placement}
-       "/nodes/"        {:get {[:id] {""       :node
-                                      "/tasks" :node-tasks}}}
+       "/nodes/"        {:get  {[:id] {""       :node
+                                       "/tasks" :node-tasks}}
+                         :post {[:id] :node-update}}
        "/tasks"         {:get :tasks}
        "/tasks/"        {:get {[:id] :task}}
        "/plugin/"       {:get {"network" :plugin-network
@@ -75,6 +93,7 @@
 
 (def frontend ["" {"/"                        :index
                    "/login"                   :login
+                   "/api-access"              :api-access
                    "/error"                   :error
                    "/unauthorized"            :unauthorized
                    "/password"                :password
@@ -84,6 +103,12 @@
                                                ["/" :id]        {""      :service-info
                                                                  "/edit" :service-edit
                                                                  "/log"  :service-log}}
+                   "/stacks"                  {""                      :stack-list
+                                               "/create"               :stack-create
+                                               ["/" :name]             :stack-info
+                                               ["/" :name "/previous"] :stack-previous
+                                               ["/" :name "/last"]     :stack-last
+                                               ["/" :name "/compose"]  :stack-compose}
                    "/networks"                {""        :network-list
                                                "/create" :network-create
                                                ["/" :id] :network-info}
@@ -96,8 +121,9 @@
                    "/configs"                 {""        :config-list
                                                "/create" :config-create
                                                ["/" :id] :config-info}
-                   "/nodes"                   {""        :node-list
-                                               ["/" :id] :node-info}
+                   "/nodes"                   {""                :node-list
+                                               ["/" :id]         :node-info
+                                               ["/" :id "/edit"] :node-edit}
                    "/tasks"                   {""        :task-list
                                                ["/" :id] :task-info}
                    "/distribution/registries" {""                :registry-list

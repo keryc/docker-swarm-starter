@@ -4,66 +4,71 @@
             [material.component.form :as form]
             [material.component.panel :as panel]
             [material.component.list-table-auto :as list]
-            [swarmpit.url :refer [dispatch!]]
-            [swarmpit.component.handler :as handler]
             [swarmpit.component.message :as message]
             [swarmpit.component.state :as state]
             [swarmpit.component.mixin :as mixin]
             [swarmpit.component.progress :as progress]
             [swarmpit.component.service.list :as services]
+            [swarmpit.docker.utils :as utils]
+            [swarmpit.url :refer [dispatch!]]
+            [swarmpit.ajax :as ajax]
             [swarmpit.routes :as routes]
             [swarmpit.time :as time]
-            [swarmpit.docker.utils :as utils]
             [rum.core :as rum]))
 
 (enable-console-print!)
 
-(def cursor [:form])
+(def driver-opts-headers ["Name" "Value"])
 
-(defonce loading? (atom false))
+(def driver-opts-render-keys
+  [[:name] [:value]])
+
+(defn driver-opts-render-item
+  [item]
+  (val item))
 
 (defn- network-services-handler
   [network-id]
-  (handler/get
+  (ajax/get
     (routes/path-for-backend :network-services {:id network-id})
-    {:on-success (fn [response]
-                   (state/update-value [:services] response cursor))}))
+    {:on-success (fn [{:keys [response]}]
+                   (state/update-value [:services] response state/form-value-cursor))}))
 
 (defn- network-handler
   [network-id]
-  (handler/get
+  (ajax/get
     (routes/path-for-backend :network {:id network-id})
-    {:state      loading?
-     :on-success (fn [response]
-                   (state/update-value [:network] response cursor))}))
+    {:state      [:loading?]
+     :on-success (fn [{:keys [response]}]
+                   (state/update-value [:network] response state/form-value-cursor))}))
 
 (defn- delete-network-handler
   [network-id]
-  (handler/delete
+  (ajax/delete
     (routes/path-for-backend :network-delete {:id network-id})
     {:on-success (fn [_]
                    (dispatch!
                      (routes/path-for-frontend :network-list))
                    (message/info
                      (str "Network " network-id " has been removed.")))
-     :on-error   (fn [response]
+     :on-error   (fn [{:keys [response]}]
                    (message/error
-                     (str "Network removing failed. Reason: " (:error response))))}))
+                     (str "Network removing failed. " (:error response))))}))
 
-(defn- init-state
+(defn- init-form-state
   []
-  (state/set-value {:network  {}
-                    :services []} cursor))
+  (state/set-value {:loading? true} state/form-state-cursor))
 
 (def mixin-init-form
   (mixin/init-form
     (fn [{{:keys [id]} :params}]
+      (init-form-state)
       (network-handler id)
       (network-services-handler id))))
 
-(rum/defc form-info < rum/static [network services]
-  (let [stack (:stack network)
-        created (:created network)]
+(rum/defc form-info < rum/static [{:keys [network services]}]
+  (let [subnet (get-in network [:ipam :subnet])
+        gateway (get-in network [:ipam :gateway])]
     [:div
      [:div.form-panel
       [:div.form-panel-left
@@ -78,31 +83,39 @@
       [:div.form-layout-group
        (form/section "General settings")
        (form/item "ID" (:id network))
-       (if (some? stack)
-         (form/item "STACK" stack))
-       (form/item "NAME" (utils/trim-stack stack (:networkName network)))
-       (when (time/valid? created)
-         (form/item-date "CREATED" created))
-       (form/item "DRIVER" (:driver network))
-       (form/item "INTERNAL" (if (:internal network)
-                               "yes"
-                               "no"))]
+       (form/item-stack (:stack network))
+       (form/item "NAME" (utils/trim-stack (:stack network)
+                                           (:networkName network)))
+       (when (time/valid? (:created network))
+         (form/item-date "CREATED" (:created network)))
+       (form/item "INTERNAL" (if (:internal network) "yes" "no"))
+       (form/item "ATTACHABLE" (if (:attachable network) "yes" "no"))
+       (form/item "INGRESS" (if (:ingress network) "yes" "no"))
+       (form/item "ENABLED IPv6" (if (:enableIPv6 network) "yes" "no"))]
       [:div.form-layout-group.form-layout-group-border
-       (form/section "IP address management")
-       (form/item "SUBNET" (get-in network [:ipam :subnet]))
-       (form/item "GATEWAY" (get-in network [:ipam :gateway]))]
-      [:div.form-layout-group.form-layout-group-border
-       (form/section "Linked Services")
-       (list/table (map :name services/headers)
-                   services
-                   services/render-item
-                   services/render-item-keys
-                   services/onclick-handler)]]]))
+       (form/section "Driver")
+       (form/item "NAME" (:driver network))
+       (when (not-empty (:options network))
+         [:div
+          (form/subsection "Network driver options")
+          (list/table driver-opts-headers
+                      (:options network)
+                      driver-opts-render-item
+                      driver-opts-render-keys
+                      nil)])]
+      (when (and (some? subnet)
+                 (some? gateway))
+        [:div.form-layout-group.form-layout-group-border
+         (form/section "IP address management")
+         (form/item "SUBNET" subnet)
+         (form/item "GATEWAY" gateway)])
+      (services/linked-services services)]]))
 
 (rum/defc form < rum/reactive
                  mixin-init-form
                  mixin/subscribe-form [_]
-  (let [{:keys [network services]} (state/react cursor)]
+  (let [state (state/react state/form-state-cursor)
+        item (state/react state/form-value-cursor)]
     (progress/form
-      (rum/react loading?)
-      (form-info network services))))
+      (:loading? state)
+      (form-info item))))

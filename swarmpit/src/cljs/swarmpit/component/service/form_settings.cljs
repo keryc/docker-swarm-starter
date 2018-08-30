@@ -2,27 +2,18 @@
   (:require [material.component :as comp]
             [material.component.form :as form]
             [swarmpit.component.state :as state]
-            [swarmpit.component.handler :as handler]
             [swarmpit.component.service.form-ports :as ports]
+            [swarmpit.component.parser :refer [parse-int]]
+            [swarmpit.ajax :as ajax]
             [swarmpit.routes :as routes]
-            [rum.core :as rum]))
+            [rum.core :as rum]
+            [clojure.string :as str]))
 
 (enable-console-print!)
 
-(def cursor [:form :settings])
+(def form-value-cursor (conj state/form-value-cursor :settings))
 
-(defonce valid? (atom false))
-
-(defonce tags (atom []))
-
-(defn tags-handler
-  [repository]
-  (handler/get 
-    (routes/path-for-backend :repository-tags)
-    {:params     {:repository repository}
-     :on-success (fn [response]
-                   (reset! tags response))
-     :on-error   (fn [_])}))
+(def form-state-cursor (conj state/form-state-cursor :settings))
 
 (def form-mode-style
   {:display   "flex"
@@ -51,7 +42,7 @@
       {:name          "image-tag"
        :key           "image-tag"
        :searchText    (:tag value)
-       :onUpdateInput (fn [v] (state/update-value [:repository :tag] v cursor))
+       :onUpdateInput (fn [v] (state/update-value [:repository :tag] v form-value-cursor))
        :dataSource    tags})))
 
 (defn- form-image-tag-preloaded [value tags]
@@ -61,7 +52,7 @@
     (comp/autocomplete {:name          "imageTagAuto"
                         :key           "imageTagAuto"
                         :searchText    (:tag value)
-                        :onUpdateInput (fn [v] (state/update-value [:repository :tag] v cursor))
+                        :onUpdateInput (fn [v] (state/update-value [:repository :tag] v form-value-cursor))
                         :onNewRequest  (fn [_] (ports/load-suggestable-ports value))
                         :dataSource    tags})))
 
@@ -75,7 +66,7 @@
        :disabled update-form?
        :value    value
        :onChange (fn [_ v]
-                   (state/update-value [:serviceName] v cursor))})))
+                   (state/update-value [:serviceName] v form-value-cursor))})))
 
 (defn- form-mode [value update-form?]
   (form/comp
@@ -86,7 +77,7 @@
        :style         form-mode-style
        :valueSelected value
        :onChange      (fn [_ v]
-                        (state/update-value [:mode] v cursor))}
+                        (state/update-value [:mode] v form-value-cursor))}
       (comp/radio-button
         {:name     "replicated-mode"
          :key      "replicated-mode"
@@ -109,24 +100,43 @@
        :required true
        :type     "number"
        :min      0
+       :value    (str value)
+       :onChange (fn [_ v]
+                   (state/update-value [:replicas] (parse-int v) form-value-cursor))})))
+
+(defn- form-command [value]
+  (form/comp
+    "COMMAND"
+    (comp/vtext-field
+      {:name     "command"
+       :key      "command"
+       :required false
        :value    value
        :onChange (fn [_ v]
-                   (state/update-value [:replicas] (js/parseInt v) cursor))})))
+                   (state/update-value [:command] (when (< 0 (count v)) (str/split v #" ")) form-value-cursor))})))
+
+(defn tags-handler
+  [repository]
+  (ajax/get
+    (routes/path-for-backend :repository-tags)
+    {:params     {:repository repository}
+     :on-success (fn [{:keys [response]}]
+                   (state/update-value [:tags] response form-state-cursor))
+     :on-error   (fn [_])}))
 
 (rum/defc form < rum/reactive [update-form?]
-  (let [{:keys [repository
-                serviceName
-                mode
-                replicas]} (state/react cursor)]
+  (let [{:keys [repository serviceName mode replicas command]} (state/react form-value-cursor)
+        {:keys [tags]} (state/react form-state-cursor)]
     [:div.form-edit
      (form/form
-       {:onValid   #(reset! valid? true)
-        :onInvalid #(reset! valid? false)}
+       {:onValid   #(state/update-value [:valid?] true form-state-cursor)
+        :onInvalid #(state/update-value [:valid?] false form-state-cursor)}
        (form-image (:name repository))
        (if update-form?
-         (form-image-tag repository (rum/react tags))
-         (form-image-tag-preloaded repository (rum/react tags)))
+         (form-image-tag repository tags)
+         (form-image-tag-preloaded repository tags))
        (form-name serviceName update-form?)
        (form-mode mode update-form?)
        (when (= "replicated" mode)
-         (form-replicas replicas)))]))
+         (form-replicas replicas))
+       (form-command (str/join " " command)))]))

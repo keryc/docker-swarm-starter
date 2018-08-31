@@ -1,6 +1,6 @@
 FROM node:8.1.4-alpine as builder
 
-COPY package.json package-lock.json ./
+COPY package.json ./
 
 RUN npm i && mkdir /ng-app && cp -R ./node_modules ./ng-app
 

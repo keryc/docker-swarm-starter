@@ -2,7 +2,7 @@ version: "3.3"
 
 services:
   nginx:
-    image: nginx:1.13.10
+    image: repo.treescale.com/kerycdiaz/nginx:1.13.10
     volumes:
       - ngdata-prod:/ng-app/dist
       - ./nginx:/etc/nginx/conf.d
@@ -27,7 +27,7 @@ services:
         window: 120s
 
   database:
-    image: postgres:9.3.22
+    image: repo.treescale.com/kerycdiaz/postgres:9.3.22-alpine
     environment:
       - POSTGRES_USER=user_example
       - POSTGRES_PASSWORD=Zaq12exam2174
@@ -45,7 +45,7 @@ services:
         window: 20s
 
   rabbitmq:
-    image: "rabbitmq:3-management"
+    image: repo.treescale.com/kerycdiaz/rabbitmq:3-management
     environment:
       RABBITMQ_DEFAULT_USER: "rabbitmq"
       RABBITMQ_DEFAULT_PASS: "aq123d"
@@ -58,12 +58,12 @@ services:
         window: 20s
 
   client:
-    image: reg.hobox.org/kdiaz/angular-starter:1.0.0
+    image: repo.treescale.com/kerycdiaz/angular-starter:1.0.0
     volumes:
         - ngdata-prod:/ng-app/dist
 
   server:
-    image: reg.hobox.org/kdiaz/django-starter:1.0.0
+    image: repo.treescale.com/kerycdiaz/django-starter:1.0.0
     env_file: 'server-prod.env'
     volumes:
       - ./server/static:/home/app/server/static
@@ -82,7 +82,7 @@ services:
       - database
 
   celery_worker:
-    image: reg.hobox.org/kdiaz/django-starter:1.0.0
+    image: repo.treescale.com/kerycdiaz/django-starter:1.0.0
     env_file: 'server-prod.env'
     command: bash -c "/home/app/server/wait-for-it.sh rabbitmq:5672:5672 && celery -A server worker -l info"
     volumes:
@@ -106,7 +106,7 @@ services:
       - server
 
   celery_beat:
-    image: reg.hobox.org/kdiaz/django-starter:1.0.0
+    image: repo.treescale.com/kerycdiaz/django-starter:1.0.0
     env_file: 'server-prod.env'
     command: bash -c "/home/app/server/wait-for-it.sh rabbitmq:5672:5672 && celery -A server beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     volumes:
@@ -128,7 +128,7 @@ services:
       - celery_worker
 
   nodejs:
-    image: reg.hobox.org/kdiaz/nodejs-starter:1.0.0
+    image: repo.treescale.com/kerycdiaz/nodejs-starter:1.0.0
     deploy:
       replicas: 1
       update_config:

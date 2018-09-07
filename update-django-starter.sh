@@ -128,6 +128,7 @@ restframework="""
 CORS_ORIGIN_WHITELIST = tuple(os.environ.get('ALLOWED_HOST_REST').split(','))
 INSTALLED_APPS.append('corsheaders')
 INSTALLED_APPS.append('rest_framework')
+MIDDLEWARE.append('corsheaders.middleware.CorsMiddleware')
 """
 	    echo "${restframework}" >> web/server/server/settings/development.py
 		echo "${restframework}" >> web/server/server/settings/production.py	
@@ -203,7 +204,7 @@ case $drf in
 	    pip install django-celery-beat
 	    echo "creating dockerignore..."
 		echo "celerybeat.pid" >> web/server/.dockerignore
-
+		cd web; cd server; pip freeze > requirements.txt; cd ../../
 	    break;
 	;;
 	[nN])

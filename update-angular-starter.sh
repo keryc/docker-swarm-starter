@@ -39,7 +39,7 @@ WORKDIR /ng-app
 
 COPY . .
 
-RUN $(npm bin)/run build
+RUN npm run build
 """
 	    echo "${dockerfile}" >> web/client/Dockerfile
 

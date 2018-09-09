@@ -1,8 +1,6 @@
 
 from .base import * 
 
-SECRET_KEY = os.environ.get('SECRET_KEY', '')
-
 DEBUG = False if os.environ.get('DEBUG', 'true') == 'false' else True
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOST').split(',')

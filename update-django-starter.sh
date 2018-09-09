@@ -25,13 +25,11 @@ sudo rm -R existing-django/*
 mkdir web/server/server/settings
 touch web/server/server/settings/__init__.py
 cp web/server/server/settings.py web/server/server/settings/base.py
-
+sudo rm web/server/server/settings.py
 
 #Creation basic config developer and production
 echo """
 from .base import * 
-
-SECRET_KEY = os.environ.get('SECRET_KEY', '')
 
 DEBUG = False if os.environ.get('DEBUG', 'true') == 'false' else True
 
@@ -46,8 +44,6 @@ MEDIA_URL = '/media/'
 """ >> web/server/server/settings/development.py
 echo """
 from .base import * 
-
-SECRET_KEY = os.environ.get('SECRET_KEY', '')
 
 DEBUG = False if os.environ.get('DEBUG', 'true') == 'false' else True
 

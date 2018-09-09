@@ -200,6 +200,12 @@ case $drf in
 	    pip install django-celery-beat
 	    echo "creating dockerignore..."
 		echo "celerybeat.pid" >> web/server/.dockerignore
+		echo "add 'django_celery_results' to your INSTALLED_APPS setting..."
+celery="""
+#CELERY BEAT
+INSTALLED_APPS.append('django_celery_beat')
+"""
+	    echo "${celery}" >> web/server/server/settings/development.py
 		cd web; cd server; pip freeze > requirements.txt; cd ../../
 	    break;
 	;;

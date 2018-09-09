@@ -6,4 +6,6 @@ rm -R web/client
 sudo npm install -g @angular/cli
 cd web; ng new client; cd ../
 
+cp -R existing-angular/Dockerfile web/client/Dockerfile
+
 sudo rm -R existing-angular/*

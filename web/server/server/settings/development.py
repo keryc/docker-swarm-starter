@@ -37,5 +37,7 @@ INSTALLED_APPS.append('django_celery_results')
 CELERY_BROKER_URL = 'amqp://rabbitmq:aq123d@rabbitmq//'
 CELERY_RESULT_BACKEND = 'django-db'
 
+
 #CELERY BEAT
 INSTALLED_APPS.append('django_celery_beat')
+
